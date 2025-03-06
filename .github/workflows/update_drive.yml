@@ -33,12 +33,17 @@ jobs:
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          # ✅ Kiểm tra xem có thay đổi không trước khi commit
+          # ✅ Stash thay đổi trước khi pull để tránh lỗi
+          git stash
+          git pull --rebase origin main
+          git stash pop || echo "⚠️ Không có gì để pop từ stash"
+
+          # ✅ Kiểm tra xem có thay đổi nào cần commit không
           git add downloads/
           if git diff --staged --quiet; then
             echo "✅ Không có thay đổi nào để commit"
           else
-            git pull --rebase origin main  # Tránh xung đột
             git commit -m "🔄 Auto-update all files from Google Drive"
             git push
           fi
+
