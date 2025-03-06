@@ -61,24 +61,19 @@ if os.path.exists(summary_file) and os.path.exists(predictions_file):
     df_summary = pd.read_csv(summary_file)
     df_predictions = pd.read_csv(predictions_file, header=None)
 
-    # 🔹 Đặt tên cột đầu tiên là "Date"
+    # 🏷️ Đặt tên cột đầu tiên là "Date" nếu chưa có
     df_summary.rename(columns={df_summary.columns[0]: "Date"}, inplace=True)
 
     # 📅 Lấy danh sách ngày mới từ file dự đoán
     df_predictions.rename(columns={0: "Date"}, inplace=True)
-    
-    # Kiểm tra nếu file dự đoán có nhiều hơn 1 cột, thêm các cột vào summary
-    if df_predictions.shape[1] > 1:
-        new_columns = df_predictions.columns[1:].tolist()
-        for col in new_columns:
-            if col not in df_summary.columns:
-                df_summary[col] = None  # Tạo cột nếu chưa có
+    new_dates = df_predictions["Date"].astype(str).tolist()
 
     # 🌟 Thêm ngày mới vào summary nếu chưa có
-    existing_dates = df_summary["Date"].astype(str).tolist()  # Lấy cột ngày từ summary
-    new_rows = df_predictions[~df_predictions["Date"].astype(str).isin(existing_dates)]
+    existing_dates = df_summary["Date"].astype(str).tolist()
+    missing_dates = [date for date in new_dates if date not in existing_dates]
 
-    if not new_rows.empty:
+    if missing_dates:
+        new_rows = df_predictions[df_predictions["Date"].isin(missing_dates)]
         df_summary = pd.concat([df_summary, new_rows], ignore_index=True)
 
     # 💾 Lưu lại file summary
