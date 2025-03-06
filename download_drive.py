@@ -88,3 +88,18 @@ if os.path.exists(predictions_file) and os.path.exists(summary_file):
         print("✅ Không có ngày mới cần thêm.")
 else:
     print("⚠️ Một trong hai file không tồn tại!")
+# Kiểm tra nếu file summary tồn tại
+if os.path.exists(summary_file):
+    # Đọc file summary
+    df_summary = pd.read_csv(summary_file)
+
+    # Thêm 3 cột trống nếu chưa có
+    for col in ["Predicted", "Upper_Bound", "Lower_Bound"]:
+        if col not in df_summary.columns:
+            df_summary[col] = ""
+
+    # Lưu lại file summary
+    df_summary.to_csv(summary_file, index=False)
+    print(f"✅ Đã thêm 3 cột trống vào {summary_file}")
+else:
+    print("⚠️ File summary_Br_daily.csv không tồn tại!")
