@@ -57,16 +57,37 @@ else:
                 print(f"⚠️ File {file_name} có thể bị lỗi, dung lượng quá nhỏ!")
                 continue
 
-            # 🔹 Nếu file là Excel, chuyển sang CSV
+            # 🔹 Nếu file là Excel, chuyển sang CSV và sắp xếp theo Date
             if file_name.endswith(('.xls', '.xlsx')):
                 csv_path = file_path.rsplit('.', 1)[0] + ".csv"
                 try:
                     df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
+
+                    # Sắp xếp theo Date nếu cột Date tồn tại
+                    if "Date" in df.columns:
+                        df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+                        df = df.sort_values(by="Date")
+
                     df.to_csv(csv_path, index=False)
                     os.remove(file_path)  # Xóa file gốc Excel
-                    print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+                    print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)} và sắp xếp theo Date")
                 except Exception as e:
                     print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
+
+            # 🔹 Nếu file đã là CSV, sắp xếp theo Date
+            elif file_name.endswith('.csv'):
+                try:
+                    df = pd.read_csv(file_path)
+
+                    # Sắp xếp theo Date nếu cột Date tồn tại
+                    if "Date" in df.columns:
+                        df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+                        df = df.sort_values(by="Date")
+
+                    df.to_csv(file_path, index=False)
+                    print(f"📅 Đã sắp xếp {file_name} theo Date")
+                except Exception as e:
+                    print(f"⚠️ Không thể sắp xếp {file_name}. Lỗi: {e}")
 
         except HttpError as error:
             print(f"❌ Lỗi khi tải {file_name}: {error}")
@@ -95,9 +116,13 @@ try:
     # Merge dữ liệu: Giữ nguyên dữ liệu cũ, thêm ngày mới và cập nhật giá trị dự đoán
     merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
 
+    # Sắp xếp theo Date trước khi lưu
+    merged_df["Date"] = pd.to_datetime(merged_df["Date"], errors='coerce')
+    merged_df = merged_df.sort_values(by="Date")
+
     # Ghi đè file cũ
     merged_df.to_csv(summary_file, index=False)
-    print("✅ File summary_Br_daily.csv đã được cập nhật thành công!")
+    print("✅ File summary_Br_daily.csv đã được cập nhật và sắp xếp theo Date!")
 
 except FileNotFoundError:
     print("⚠️ Không tìm thấy file predictions_table_BR_daily.csv, không thể cập nhật summary_Br_daily.csv.")
