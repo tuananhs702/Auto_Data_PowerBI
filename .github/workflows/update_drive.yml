@@ -35,8 +35,8 @@ jobs:
           if git diff --staged --quiet; then
             echo "No changes to commit"
           else
-            # Pull trước khi commit để lấy các thay đổi mới nhất
-            git pull --rebase origin main
+            git pull --rebase --autostash origin main  # Đảm bảo luôn lấy thay đổi mới nhất
             git commit -m "Auto-update all files from Google Drive"
             git push
           fi
+
