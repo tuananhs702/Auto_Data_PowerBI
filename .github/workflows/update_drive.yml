@@ -35,6 +35,7 @@ jobs:
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
+          git config --global --add safe.directory /github/workspace
           git remote set-url origin https://x-access-token:${GH_PAT}@github.com/tuananhs702/Auto_Data_PowerBI.git
           git add downloads/*
           git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive" && git push origin main)
