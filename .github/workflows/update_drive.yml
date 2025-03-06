@@ -33,17 +33,19 @@ jobs:
           
           git add downloads/
           
-          # Kiểm tra có thay đổi hay không
+          # Kiểm tra có thay đổi không
           if git diff --staged --quiet; then
-            echo "✅ No changes to commit"
-          else
-            echo "🔄 Fetching latest changes..."
-            git fetch origin main
-            git reset --hard origin/main  # Đồng bộ hoàn toàn với GitHub
-            
-            echo "✅ Committing changes..."
-            git commit -m "Auto-update all files from Google Drive"
-            
-            echo "🚀 Pushing to GitHub..."
-            git push origin main --force
+            echo "✅ No changes to commit. Exiting..."
+            exit 0  # Thoát thành công thay vì báo lỗi
           fi
+          
+          echo "🔄 Fetching latest changes..."
+          git fetch origin main
+          git reset --hard origin/main  # Đồng bộ với GitHub
+          
+          echo "✅ Committing changes..."
+          git commit -m "Auto-update all files from Google Drive"
+          
+          echo "🚀 Pushing to GitHub..."
+          git push origin main --force
+
