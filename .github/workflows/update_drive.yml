@@ -1,7 +1,7 @@
 name: Download and Commit Files
 on:
   schedule:
-    - cron: "0 8 * * *"  # Chạy tự động hàng ngày lúc 08:00 UTC
+    - cron: "0 8 * * *"  # Chạy tự động mỗi ngày lúc 08:00 UTC
   workflow_dispatch:  # Cho phép chạy thủ công
 
 jobs:
@@ -38,7 +38,7 @@ jobs:
         run: |
           git remote set-url origin https://x-access-token:${GH_PAT}@github.com/tuananhs702/Auto_Data_PowerBI.git
           
-          # Kéo code mới nhất trước khi push để tránh conflict
+          # Kéo code mới nhất trước khi commit để tránh conflict
           git pull --rebase origin main || git pull --rebase --allow-unrelated-histories origin main
           
           git add downloads/*
