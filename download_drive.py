@@ -79,9 +79,4 @@ merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
 merged_df.to_csv(summary_file, index=False)
 
 print("✅ File summary_Br_daily.csv đã được cập nhật thành công!")
-# Chạy lệnh Git tự động sau khi cập nhật file
-os.system("git add summary_Br_daily.csv")
-os.system('git commit -m "Cập nhật dữ liệu dự đoán vào summary_Br_daily.csv"')
-os.system("git push origin main")
 
-print("✅ Đã commit và push lên GitHub!")
