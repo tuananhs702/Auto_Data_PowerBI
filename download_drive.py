@@ -13,13 +13,12 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 creds = service_account.Credentials.from_service_account_info(GDRIVE_CREDENTIALS, scopes=SCOPES)
 service = build('drive', 'v3', credentials=creds)
 
-# Thư mục Google Drive cần tải về (THAY BẰNG ID THƯ MỤC CỦA BẠN)
+# ID thư mục Google Drive cần tải về (THAY BẰNG ID CỦA BẠN)
 FOLDER_ID = "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"
 SAVE_PATH = "downloads"
 
-# Tạo thư mục lưu file
-if not os.path.exists(SAVE_PATH):
-    os.makedirs(SAVE_PATH)
+# ✅ Đảm bảo thư mục downloads tồn tại
+os.makedirs(SAVE_PATH, exist_ok=True)
 
 # Lấy danh sách file trong thư mục Google Drive
 query = f"'{FOLDER_ID}' in parents and trashed=false"
@@ -27,16 +26,19 @@ results = service.files().list(q=query, fields="files(id, name)").execute()
 files = results.get('files', [])
 
 if not files:
-    print("Không có file nào trong thư mục!")
+    print("⚠️ Không có file nào trong thư mục!")
 else:
     for file in files:
         file_id = file['id']
         file_name = file['name']
         file_path = os.path.join(SAVE_PATH, file_name)
+
+        # Tải file từ Google Drive
         request = service.files().get_media(fileId=file_id)
         with open(file_path, "wb") as f:
             downloader = MediaIoBaseDownload(f, request)
             done = False
             while not done:
                 status, done = downloader.next_chunk()
-        print(f"Đã tải: {file_name}")
+
+        print(f"✅ Đã tải: {file_name}")
