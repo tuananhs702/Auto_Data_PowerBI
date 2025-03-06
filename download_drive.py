@@ -56,32 +56,26 @@ else:
 summary_file = os.path.join(SAVE_PATH, "summary_Br_daily.csv")
 predictions_file = os.path.join(SAVE_PATH, "predictions_table_BR_daily.csv")
 
-# ✅ Nếu file summary chưa tồn tại, tạo file trống
-if not os.path.exists(summary_file):
-    pd.DataFrame(columns=["Date"]).to_csv(summary_file, index=False)
+# Đọc file summary (nếu có)
+try:
+    summary_df = pd.read_csv(summary_file)
+except FileNotFoundError:
+    summary_df = pd.DataFrame(columns=["Date", "Fitting", "True_value"])  # Tạo dataframe trống nếu file không tồn tại
 
-# ✅ Đọc dữ liệu từ file
-df_summary = pd.read_csv(summary_file)
-df_predictions = pd.read_csv(predictions_file)
+# Đọc file predictions
+predictions_df = pd.read_csv(predictions_file)
 
-# 🔹 Đảm bảo cột có đúng tiêu đề
-df_predictions.columns = ["Date", "Predicted", "Upper_Bound", "Lower_Bound"]
-df_predictions["Date"] = df_predictions["Date"].astype(str)
+# Đảm bảo cột Date có tiêu đề đúng
+summary_df.rename(columns={summary_df.columns[0]: "Date"}, inplace=True)
+predictions_df.rename(columns={predictions_df.columns[0]: "Date"}, inplace=True)
 
-# 🔹 Đổi tên cột đầu tiên thành "Date" nếu chưa đúng
-if df_summary.columns[0] != "Date":
-    df_summary.rename(columns={df_summary.columns[0]: "Date"}, inplace=True)
+# Chỉ lấy các cột cần thiết từ predictions
+predictions_df = predictions_df[["Date", "Predicted", "Upper_Bound", "Lower_Bound"]]
 
-# 🛠️ Loại bỏ dòng tiêu đề bị chèn nhầm
-df_predictions = df_predictions[df_predictions["Date"] != "Predicted"]
+# Merge dữ liệu: Giữ nguyên dữ liệu cũ, thêm ngày mới và cập nhật giá trị dự đoán
+merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
 
-# 📌 Lấy danh sách ngày đã có trong summary
-existing_dates = df_summary["Date"].astype(str).tolist()
+# Ghi đè file cũ
+merged_df.to_csv(summary_file, index=False)
 
-# 🔄 Thêm dữ liệu mới từ df_predictions vào summary nếu ngày đó chưa có
-df_new = df_predictions[~df_predictions["Date"].isin(existing_dates)]
-df_summary = pd.concat([df_summary, df_new], ignore_index=True)
-
-# 💾 Lưu lại file summary
-df_summary.to_csv(summary_file, index=False)
-print(f"✅ Đã cập nhật {summary_file} mà không chèn sai tiêu đề!")
+print("✅ File summary_Br_daily.csv đã được cập nhật thành công!")
