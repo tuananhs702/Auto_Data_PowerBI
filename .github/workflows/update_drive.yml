@@ -1,7 +1,7 @@
 name: Download and Commit Files
 on:
   schedule:
-    - cron: "0 8 * * *"  # Chạy tự động mỗi ngày lúc 08:00 UTC
+    - cron: "0 8 * * *"  # Chạy hàng ngày lúc 08:00 UTC
   workflow_dispatch:  # Cho phép chạy thủ công
 
 jobs:
@@ -11,7 +11,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Lấy toàn bộ lịch sử commit để tránh lỗi "fetch first"
+          fetch-depth: 0  # Lấy toàn bộ lịch sử commit
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -38,8 +38,10 @@ jobs:
         run: |
           git remote set-url origin https://x-access-token:${GH_PAT}@github.com/tuananhs702/Auto_Data_PowerBI.git
           
-          # Kéo code mới nhất trước khi commit để tránh conflict
-          git pull --rebase origin main || git pull --rebase --allow-unrelated-histories origin main
-          
+          # Lấy code mới nhất để tránh lỗi xung đột
+          git fetch origin main
+          git pull --rebase origin main
+
+          # Thêm và commit thay đổi nếu có
           git add downloads/*
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive" && git push origin main || git push --force origin main)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive" && git push origin main)
