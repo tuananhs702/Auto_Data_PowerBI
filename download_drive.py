@@ -1,10 +1,11 @@
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
+from googleapiclient.http import MediaIoBaseDownload
+from googleapiclient.errors import HttpError
 import os
 import io
 import json
 import pandas as pd
-from googleapiclient.http import MediaIoBaseDownload
 
 # 🔹 Lấy credentials từ GitHub Secrets
 GDRIVE_CREDENTIALS = json.loads(os.getenv("GDRIVE_CREDENTIALS"))
@@ -32,35 +33,43 @@ else:
     for file in files:
         file_id = file['id']
         file_name = file['name']
-        mime_type = file['mimeType']  # Kiểm tra loại file
         file_path = os.path.join(SAVE_PATH, file_name)
 
-        # 🔹 Nếu là Google Sheets → Xuất về CSV trước khi tải
-        if mime_type == "application/vnd.google-apps.spreadsheet":
-            request = service.files().export_media(fileId=file_id, mimeType='text/csv')
-            file_path = file_path.rsplit('.', 1)[0] + ".csv"  # Đổi tên thành CSV
-        else:
-            request = service.files().get_media(fileId=file_id)
+        try:
+            # 🔹 Nếu là Google Sheets, xuất sang CSV
+            if file["mimeType"] == "application/vnd.google-apps.spreadsheet":
+                request = service.files().export_media(fileId=file_id, mimeType="text/csv")
+                file_path = file_path.rsplit(".", 1)[0] + ".csv"  # Đổi tên thành CSV
+            else:
+                request = service.files().get_media(fileId=file_id)
 
-        # Tải file
-        with open(file_path, "wb") as f:
-            downloader = MediaIoBaseDownload(f, request)
-            done = False
-            while not done:
-                status, done = downloader.next_chunk()
+            # 🔹 Tải file từ Google Drive
+            with open(file_path, "wb") as f:
+                downloader = MediaIoBaseDownload(f, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
 
-        print(f"✅ Đã tải: {file_name}")
+            print(f"✅ Đã tải: {file_name}")
 
-        # 🔹 Nếu file là Excel, chuyển sang CSV
-        if file_name.endswith(('.xls', '.xlsx')):
-            csv_path = file_path.rsplit('.', 1)[0] + ".csv"
-            
-            # 🔹 Đọc Excel, chỉ định engine
-            df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
-            
-            df.to_csv(csv_path, index=False)
-            os.remove(file_path)  # Xóa file gốc Excel
-            print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+            # 🔹 Kiểm tra nếu file có dung lượng bất thường
+            if os.path.getsize(file_path) < 100:  # File quá nhỏ có thể bị lỗi
+                print(f"⚠️ File {file_name} có thể bị lỗi, dung lượng quá nhỏ!")
+                continue
+
+            # 🔹 Nếu file là Excel, chuyển sang CSV
+            if file_name.endswith(('.xls', '.xlsx')):
+                csv_path = file_path.rsplit('.', 1)[0] + ".csv"
+                try:
+                    df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
+                    df.to_csv(csv_path, index=False)
+                    os.remove(file_path)  # Xóa file gốc Excel
+                    print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+                except Exception as e:
+                    print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
+
+        except HttpError as error:
+            print(f"❌ Lỗi khi tải {file_name}: {error}")
 
 # 🔹 Cập nhật summary_Br_daily.csv từ predictions_table_BR_daily.csv
 summary_file = os.path.join(SAVE_PATH, "summary_Br_daily.csv")
@@ -73,19 +82,22 @@ except FileNotFoundError:
     summary_df = pd.DataFrame(columns=["Date", "Fitting", "True_value"])  # Tạo dataframe trống nếu file không tồn tại
 
 # Đọc file predictions
-predictions_df = pd.read_csv(predictions_file)
+try:
+    predictions_df = pd.read_csv(predictions_file)
 
-# Đảm bảo cột Date có tiêu đề đúng
-summary_df.rename(columns={summary_df.columns[0]: "Date"}, inplace=True)
-predictions_df.rename(columns={predictions_df.columns[0]: "Date"}, inplace=True)
+    # Đảm bảo cột Date có tiêu đề đúng
+    summary_df.rename(columns={summary_df.columns[0]: "Date"}, inplace=True)
+    predictions_df.rename(columns={predictions_df.columns[0]: "Date"}, inplace=True)
 
-# Chỉ lấy các cột cần thiết từ predictions
-predictions_df = predictions_df[["Date", "Predicted", "Upper_Bound", "Lower_Bound"]]
+    # Chỉ lấy các cột cần thiết từ predictions
+    predictions_df = predictions_df[["Date", "Predicted", "Upper_Bound", "Lower_Bound"]]
 
-# Merge dữ liệu: Giữ nguyên dữ liệu cũ, thêm ngày mới và cập nhật giá trị dự đoán
-merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
+    # Merge dữ liệu: Giữ nguyên dữ liệu cũ, thêm ngày mới và cập nhật giá trị dự đoán
+    merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
 
-# Ghi đè file cũ
-merged_df.to_csv(summary_file, index=False)
+    # Ghi đè file cũ
+    merged_df.to_csv(summary_file, index=False)
+    print("✅ File summary_Br_daily.csv đã được cập nhật thành công!")
 
-print("✅ File summary_Br_daily.csv đã được cập nhật thành công!")
+except FileNotFoundError:
+    print("⚠️ Không tìm thấy file predictions_table_BR_daily.csv, không thể cập nhật summary_Br_daily.csv.")
