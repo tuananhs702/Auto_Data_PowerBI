@@ -23,7 +23,7 @@ os.makedirs(SAVE_PATH, exist_ok=True)
 
 # 🔹 Lấy danh sách file trong thư mục Google Drive
 query = f"'{FOLDER_ID}' in parents and trashed=false"
-results = service.files().list(q=query, fields="files(id, name)").execute()
+results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
 files = results.get('files', [])
 
 if not files:
@@ -32,10 +32,17 @@ else:
     for file in files:
         file_id = file['id']
         file_name = file['name']
+        mime_type = file['mimeType']  # Kiểm tra loại file
         file_path = os.path.join(SAVE_PATH, file_name)
 
-        # 🔹 Tải file từ Google Drive
-        request = service.files().get_media(fileId=file_id)
+        # 🔹 Nếu là Google Sheets → Xuất về CSV trước khi tải
+        if mime_type == "application/vnd.google-apps.spreadsheet":
+            request = service.files().export_media(fileId=file_id, mimeType='text/csv')
+            file_path = file_path.rsplit('.', 1)[0] + ".csv"  # Đổi tên thành CSV
+        else:
+            request = service.files().get_media(fileId=file_id)
+
+        # Tải file
         with open(file_path, "wb") as f:
             downloader = MediaIoBaseDownload(f, request)
             done = False
@@ -79,4 +86,3 @@ merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
 merged_df.to_csv(summary_file, index=False)
 
 print("✅ File summary_Br_daily.csv đã được cập nhật thành công!")
-
