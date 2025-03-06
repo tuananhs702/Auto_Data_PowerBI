@@ -13,68 +13,70 @@ SCOPES = ['https://www.googleapis.com/auth/drive']
 creds = service_account.Credentials.from_service_account_info(GDRIVE_CREDENTIALS, scopes=SCOPES)
 service = build('drive', 'v3', credentials=creds)
 
-# 🔹 ID thư mục Google Drive cần tải
-FOLDER_ID = "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"
+# 🔹 Danh sách file cần tải (tên file và thư mục chứa file)
+FILES_TO_DOWNLOAD = [
+    {"name": "Data_BR_Test.xlsx", "folder_id": "1IC9bv_TQ5ThnVN4DlQc6-LealJel15uK"},
+    {"name": "Price_cotton_26_02_USA_X.xlsx", "folder_id": "1TqeQ97icQLRhLaHoBYCY5QGPl1Inryt2"}
+]
+
 SAVE_PATH = "downloads"
 os.makedirs(SAVE_PATH, exist_ok=True)
 
-# 🔹 Lấy danh sách file trong thư mục Google Drive
-query = f"'{FOLDER_ID}' in parents and trashed=false"
-results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
-files = results.get('files', [])
+for file_info in FILES_TO_DOWNLOAD:
+    file_name = file_info["name"]
+    folder_id = file_info["folder_id"]
 
-if not files:
-    print("⚠️ Không có file nào trong thư mục!")
-else:
-    for file in files:
-        file_id = file['id']
-        file_name = file['name']
-        file_mime = file["mimeType"]
-        file_path = os.path.join(SAVE_PATH, file_name)
+    # 🔹 Kiểm tra xem file có tồn tại trong thư mục không
+    query = f"name='{file_name}' and '{folder_id}' in parents and trashed=false"
+    results = service.files().list(q=query, fields="files(id, name, mimeType)").execute()
+    files = results.get('files', [])
 
-        try:
-            # 🔹 Kiểm tra nếu là Google Sheets -> Xuất CSV
-            if file_mime == "application/vnd.google-apps.spreadsheet":
-                request = service.files().export_media(fileId=file_id, mimeType="text/csv")
-                file_path = file_path.rsplit(".", 1)[0] + ".csv"
-            else:
-                request = service.files().get_media(fileId=file_id)
+    if not files:
+        print(f"⚠️ Không tìm thấy {file_name} trong thư mục {folder_id}!")
+        continue
 
-            # 🔹 Tải file từ Google Drive
-            with open(file_path, "wb") as f:
-                downloader = MediaIoBaseDownload(f, request)
-                done = False
-                while not done:
-                    status, done = downloader.next_chunk()
+    file_id = files[0]['id']
+    file_mime = files[0]["mimeType"]
+    file_path = os.path.join(SAVE_PATH, file_name)
 
-            print(f"✅ Đã tải: {file_name} ({file_mime})")
+    try:
+        # 🔹 Nếu file là Google Sheets -> Xuất CSV
+        if file_mime == "application/vnd.google-apps.spreadsheet":
+            request = service.files().export_media(fileId=file_id, mimeType="text/csv")
+            file_path = file_path.rsplit(".", 1)[0] + ".csv"
+        else:
+            request = service.files().get_media(fileId=file_id)
 
-            # 🔹 Nếu file là Excel, kiểm tra định dạng trước khi xử lý
-            if file_name.endswith(('.xls', '.xlsx')):
-                try:
-                    # Kiểm tra MIME type hợp lệ
-                    if file_mime not in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                         "application/vnd.ms-excel"]:
-                        raise ValueError("⚠️ File không phải là Excel hợp lệ!")
+        # 🔹 Tải file từ Google Drive
+        with open(file_path, "wb") as f:
+            downloader = MediaIoBaseDownload(f, request)
+            done = False
+            while not done:
+                status, done = downloader.next_chunk()
 
-                    csv_path = file_path.rsplit('.', 1)[0] + ".csv"
-                    df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
+        print(f"✅ Đã tải: {file_name} ({file_mime})")
+
+        # 🔹 Nếu file là Excel, chuyển sang CSV
+        if file_name.endswith(('.xls', '.xlsx')):
+            try:
+                csv_path = file_path.rsplit('.', 1)[0] + ".csv"
+                df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
+                df.to_csv(csv_path, index=False)
+                os.remove(file_path)  # Xóa file gốc Excel
+                print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+
+                # Sắp xếp nếu có cột Date
+                df = pd.read_csv(csv_path)
+                if "Date" in df.columns:
+                    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+                    df = df.sort_values(by="Date")
                     df.to_csv(csv_path, index=False)
-                    os.remove(file_path)  # Xóa file gốc Excel
-                    print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+                    print(f"📅 Đã sắp xếp {file_name} theo Date")
 
-                    # Sắp xếp nếu có cột Date
-                    df = pd.read_csv(csv_path)
-                    if "Date" in df.columns:
-                        df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-                        df = df.sort_values(by="Date")
-                        df.to_csv(csv_path, index=False)
-                        print(f"📅 Đã sắp xếp {file_name} theo Date")
+            except Exception as e:
+                print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
 
-                except Exception as e:
-                    print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
+    except Exception as error:
+        print(f"❌ Lỗi khi tải {file_name}: {error}")
 
-        except Exception as error:
-            print(f"❌ Lỗi khi tải {file_name}: {error}")
-
-print("\n✅ Hoàn thành tải và sắp xếp tất cả các file CSV theo Date!")
+print("\n✅ Hoàn thành tải và xử lý tất cả các file được chỉ định!")
