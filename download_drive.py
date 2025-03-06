@@ -67,11 +67,24 @@ if os.path.exists(predictions_file) and os.path.exists(summary_file):
     # Giả sử cột ngày là cột đầu tiên trong summary
     df_summary.columns = ['date'] + [f'col_{i}' for i in range(1, df_summary.shape[1])]
 
-    # Gộp dữ liệu ngày từ predictions, không làm mất dữ liệu cũ
-    df_summary = pd.concat([df_summary, df_pred], ignore_index=True).drop_duplicates(subset=['date'])
+    # Tìm các ngày mới có trong df_pred nhưng không có trong df_summary
+    existing_dates = set(df_summary['date'].astype(str))
+    new_dates = df_pred[~df_pred['date'].astype(str).isin(existing_dates)]
 
-    # Lưu lại file summary với tất cả các cột
-    df_summary.to_csv(summary_file, index=False, header=False)
-    print(f"✅ Đã cập nhật ngày từ {predictions_file} vào {summary_file}")
+    if not new_dates.empty:
+        # Tạo dataframe mới với giá trị 0 cho các cột còn lại
+        num_columns = df_summary.shape[1] - 1  # Số lượng cột dữ liệu trừ cột 'date'
+        new_rows = pd.DataFrame(0, index=new_dates.index, columns=df_summary.columns)
+        new_rows['date'] = new_dates['date']  # Gán cột ngày
+
+        # Gộp vào summary, giữ ngày duy nhất
+        df_summary = pd.concat([df_summary, new_rows], ignore_index=True)
+        df_summary.drop_duplicates(subset=['date'], keep='first', inplace=True)
+
+        # Lưu lại file summary với tất cả các cột
+        df_summary.to_csv(summary_file, index=False, header=False)
+        print(f"✅ Đã thêm {len(new_dates)} ngày mới với các giá trị 0 vào {summary_file}")
+    else:
+        print("✅ Không có ngày mới cần thêm.")
 else:
     print("⚠️ Một trong hai file không tồn tại!")
