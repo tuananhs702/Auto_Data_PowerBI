@@ -1,16 +1,49 @@
+name: Download and Commit Files
+on:
+  schedule:
+    - cron: "0 8 * * *"  # Chạy tự động mỗi ngày lúc 08:00 UTC
+  workflow_dispatch:  # Cho phép chạy thủ công
+
+jobs:
+  download-and-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0  # Lấy toàn bộ lịch sử để tránh xung đột
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+
+      - name: Download all files from Google Drive
+        env:
+          GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
+        run: python download_drive.py
+
       - name: Commit and push changes
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
+          
           git add downloads/
           
-          # Kiểm tra có thay đổi gì không
+          # Kiểm tra có thay đổi hay không
           if git diff --staged --quiet; then
-            echo "No changes to commit"
+            echo "✅ No changes to commit"
           else
-            git fetch origin main  # Lấy dữ liệu mới nhất từ GitHub
-            git pull --rebase origin main  # Đồng bộ code mới nhất
+            echo "🔄 Fetching latest changes..."
+            git fetch origin main
+            git reset --hard origin/main  # Đồng bộ hoàn toàn với GitHub
             
+            echo "✅ Committing changes..."
             git commit -m "Auto-update all files from Google Drive"
-            git push origin main
+            
+            echo "🚀 Pushing to GitHub..."
+            git push origin main --force
           fi
