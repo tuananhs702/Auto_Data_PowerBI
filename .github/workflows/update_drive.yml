@@ -1,8 +1,8 @@
 name: Download and Commit Files
 on:
   schedule:
-    - cron: "0 8 * * *"
-  workflow_dispatch:
+    - cron: "0 8 * * *"  # Chạy tự động hàng ngày lúc 08:00 UTC
+  workflow_dispatch:  # Cho phép chạy thủ công
 
 jobs:
   download-and-commit:
@@ -10,37 +10,36 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
-        
+        with:
+          fetch-depth: 0  # Lấy toàn bộ lịch sử commit để tránh lỗi "fetch first"
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.x"
-          
+
       - name: Install dependencies
         run: pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
-        
+
       - name: Download all files from Google Drive
         env:
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: python download_drive.py
-        
+
       - name: Set up Git user
-        run: |
-          git config --global user.name "Your Name"
-          git config --global user.email "your.email@example.com"
-          
-      - name: Commit and push if changed
-        env:
-          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
           git config --global user.name "github-actions"
           git config --global user.email "github-actions@github.com"
           git config --global --add safe.directory /github/workspace
+
+      - name: Commit and push if changed
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
+        run: |
           git remote set-url origin https://x-access-token:${GH_PAT}@github.com/tuananhs702/Auto_Data_PowerBI.git
           
-          # Fetch latest changes để tránh conflict
-          git fetch origin main
-          git reset --soft origin/main
+          # Kéo code mới nhất trước khi push để tránh conflict
+          git pull --rebase origin main || git pull --rebase --allow-unrelated-histories origin main
           
           git add downloads/*
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive" && git push origin main)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive" && git push origin main || git push --force origin main)
