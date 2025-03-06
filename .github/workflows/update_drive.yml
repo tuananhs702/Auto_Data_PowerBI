@@ -29,8 +29,12 @@ jobs:
           git config --global user.name "Your Name"
           git config --global user.email "your.email@example.com"
           
-      - name: Commit and push changes
+      - name: Commit and push if changed
+        env:
+          GH_PAT: ${{ secrets.GH_PAT }}
         run: |
-          git add downloads/
-          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update all files from Google Drive"
-          git push "https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git remote set-url origin https://x-access-token:${GH_PAT}@github.com/tuananhs702/Auto_Data_PowerBI.git
+          git add downloads/*
+          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive" && git push origin main)
