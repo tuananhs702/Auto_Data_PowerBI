@@ -54,7 +54,10 @@ else:
         # 🔹 Nếu file là Excel, chuyển sang CSV
         if file_name.endswith(('.xls', '.xlsx')):
             csv_path = file_path.rsplit('.', 1)[0] + ".csv"
-            df = pd.read_excel(file_path)
+            
+            # 🔹 Đọc Excel, chỉ định engine
+            df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
+            
             df.to_csv(csv_path, index=False)
             os.remove(file_path)  # Xóa file gốc Excel
             print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
