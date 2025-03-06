@@ -21,7 +21,7 @@ jobs:
           python-version: "3.x"
 
       - name: Install dependencies
-        run: pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+        run: pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client pandas openpyxl
 
       - name: Download all files from Google Drive
         env:
