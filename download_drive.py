@@ -6,22 +6,22 @@ import json
 import pandas as pd
 from googleapiclient.http import MediaIoBaseDownload
 
-# Lấy credentials từ GitHub Secrets
+# 🔹 Lấy credentials từ GitHub Secrets
 GDRIVE_CREDENTIALS = json.loads(os.getenv("GDRIVE_CREDENTIALS"))
 
-# Kết nối với Google Drive API
+# 🔹 Kết nối với Google Drive API
 SCOPES = ['https://www.googleapis.com/auth/drive']
 creds = service_account.Credentials.from_service_account_info(GDRIVE_CREDENTIALS, scopes=SCOPES)
 service = build('drive', 'v3', credentials=creds)
 
-# ID thư mục Google Drive cần tải về (THAY BẰNG ID CỦA BẠN)
+# 🔹 ID thư mục Google Drive cần tải
 FOLDER_ID = "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"
 SAVE_PATH = "downloads"
 
-# ✅ Đảm bảo thư mục downloads tồn tại
+# 🔹 Tạo thư mục downloads nếu chưa tồn tại
 os.makedirs(SAVE_PATH, exist_ok=True)
 
-# Lấy danh sách file trong thư mục Google Drive
+# 🔹 Lấy danh sách file trong thư mục Google Drive
 query = f"'{FOLDER_ID}' in parents and trashed=false"
 results = service.files().list(q=query, fields="files(id, name)").execute()
 files = results.get('files', [])
@@ -32,12 +32,10 @@ else:
     for file in files:
         file_id = file['id']
         file_name = file['name']
-        file_ext = os.path.splitext(file_name)[1].lower()  # Lấy phần mở rộng file
-
         file_path = os.path.join(SAVE_PATH, file_name)
-        request = service.files().get_media(fileId=file_id)
 
-        # Tải file về máy
+        # 🔹 Tải file từ Google Drive
+        request = service.files().get_media(fileId=file_id)
         with open(file_path, "wb") as f:
             downloader = MediaIoBaseDownload(f, request)
             done = False
@@ -46,13 +44,27 @@ else:
 
         print(f"✅ Đã tải: {file_name}")
 
-        # 👉 Nếu là file Excel, chuyển sang CSV
-        if file_ext in [".xlsx", ".xls"]:
-            try:
-                df = pd.read_excel(file_path)
-                csv_path = file_path.replace(file_ext, ".csv")
-                df.to_csv(csv_path, index=False)
-                os.remove(file_path)  # Xóa file Excel gốc
-                print(f"🔄 Đã chuyển đổi {file_name} -> {csv_path}")
-            except Exception as e:
-                print(f"❌ Lỗi khi chuyển đổi {file_name}: {e}")
+        # 🔹 Nếu file là Excel, chuyển sang CSV
+        if file_name.endswith(('.xls', '.xlsx')):
+            csv_path = file_path.rsplit('.', 1)[0] + ".csv"
+            df = pd.read_excel(file_path)
+            df.to_csv(csv_path, index=False)
+            os.remove(file_path)  # Xóa file gốc Excel
+            print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+
+# 🔹 Cập nhật summary_Br_daily.csv từ predictions_table_BR_daily.csv
+predictions_file = os.path.join(SAVE_PATH, "predictions_table_BR_daily.csv")
+summary_file = os.path.join(SAVE_PATH, "summary_Br_daily.csv")
+
+if os.path.exists(predictions_file) and os.path.exists(summary_file):
+    df_pred = pd.read_csv(predictions_file, header=None, usecols=[0], names=['date'])
+    df_summary = pd.read_csv(summary_file, header=None, names=['date'])
+
+    # Gộp dữ liệu, loại bỏ trùng lặp
+    df_summary = pd.concat([df_summary, df_pred], ignore_index=True).drop_duplicates()
+
+    # Lưu lại file summary
+    df_summary.to_csv(summary_file, index=False, header=False)
+    print(f"✅ Đã cập nhật ngày từ {predictions_file} vào {summary_file}")
+else:
+    print("⚠️ Một trong hai file không tồn tại!")
