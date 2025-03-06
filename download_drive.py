@@ -56,14 +56,21 @@ else:
 predictions_file = os.path.join(SAVE_PATH, "predictions_table_BR_daily.csv")
 summary_file = os.path.join(SAVE_PATH, "summary_Br_daily.csv")
 
+# Kiểm tra nếu cả hai file tồn tại
 if os.path.exists(predictions_file) and os.path.exists(summary_file):
+    # Đọc file predictions (chỉ lấy cột đầu tiên là ngày)
     df_pred = pd.read_csv(predictions_file, header=None, usecols=[0], names=['date'])
-    df_summary = pd.read_csv(summary_file, header=None, names=['date'])
 
-    # Gộp dữ liệu, loại bỏ trùng lặp
-    df_summary = pd.concat([df_summary, df_pred], ignore_index=True).drop_duplicates()
+    # Đọc file summary (giữ nguyên tất cả các cột)
+    df_summary = pd.read_csv(summary_file, header=None)
 
-    # Lưu lại file summary
+    # Giả sử cột ngày là cột đầu tiên trong summary
+    df_summary.columns = ['date'] + [f'col_{i}' for i in range(1, df_summary.shape[1])]
+
+    # Gộp dữ liệu ngày từ predictions, không làm mất dữ liệu cũ
+    df_summary = pd.concat([df_summary, df_pred], ignore_index=True).drop_duplicates(subset=['date'])
+
+    # Lưu lại file summary với tất cả các cột
     df_summary.to_csv(summary_file, index=False, header=False)
     print(f"✅ Đã cập nhật ngày từ {predictions_file} vào {summary_file}")
 else:
