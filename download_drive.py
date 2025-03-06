@@ -1,9 +1,7 @@
 from googleapiclient.discovery import build
 from google.oauth2 import service_account
 from googleapiclient.http import MediaIoBaseDownload
-from googleapiclient.errors import HttpError
 import os
-import io
 import json
 import pandas as pd
 
@@ -18,8 +16,6 @@ service = build('drive', 'v3', credentials=creds)
 # 🔹 ID thư mục Google Drive cần tải
 FOLDER_ID = "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"
 SAVE_PATH = "downloads"
-
-# 🔹 Tạo thư mục downloads nếu chưa tồn tại
 os.makedirs(SAVE_PATH, exist_ok=True)
 
 # 🔹 Lấy danh sách file trong thư mục Google Drive
@@ -33,13 +29,14 @@ else:
     for file in files:
         file_id = file['id']
         file_name = file['name']
+        file_mime = file["mimeType"]
         file_path = os.path.join(SAVE_PATH, file_name)
 
         try:
-            # 🔹 Nếu là Google Sheets, xuất sang CSV
-            if file["mimeType"] == "application/vnd.google-apps.spreadsheet":
+            # 🔹 Kiểm tra nếu là Google Sheets -> Xuất CSV
+            if file_mime == "application/vnd.google-apps.spreadsheet":
                 request = service.files().export_media(fileId=file_id, mimeType="text/csv")
-                file_path = file_path.rsplit(".", 1)[0] + ".csv"  # Đổi tên thành CSV
+                file_path = file_path.rsplit(".", 1)[0] + ".csv"
             else:
                 request = service.files().get_media(fileId=file_id)
 
@@ -50,36 +47,34 @@ else:
                 while not done:
                     status, done = downloader.next_chunk()
 
-            print(f"✅ Đã tải: {file_name}")
+            print(f"✅ Đã tải: {file_name} ({file_mime})")
 
-            # 🔹 Nếu file là Excel, chuyển sang CSV
+            # 🔹 Nếu file là Excel, kiểm tra định dạng trước khi xử lý
             if file_name.endswith(('.xls', '.xlsx')):
-                csv_path = file_path.rsplit('.', 1)[0] + ".csv"
                 try:
+                    # Kiểm tra MIME type hợp lệ
+                    if file_mime not in ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                         "application/vnd.ms-excel"]:
+                        raise ValueError("⚠️ File không phải là Excel hợp lệ!")
+
+                    csv_path = file_path.rsplit('.', 1)[0] + ".csv"
                     df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
                     df.to_csv(csv_path, index=False)
                     os.remove(file_path)  # Xóa file gốc Excel
                     print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
-                    file_path = csv_path  # Cập nhật đường dẫn mới để xử lý tiếp
-                except Exception as e:
-                    print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
-                    continue  # Bỏ qua file này nếu lỗi
 
-            # 🔹 Sắp xếp tất cả các file CSV theo Date
-            if file_path.endswith('.csv'):
-                try:
-                    df = pd.read_csv(file_path)
-
-                    # Kiểm tra và sắp xếp theo Date nếu có cột Date
+                    # Sắp xếp nếu có cột Date
+                    df = pd.read_csv(csv_path)
                     if "Date" in df.columns:
                         df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
                         df = df.sort_values(by="Date")
-                        df.to_csv(file_path, index=False)
+                        df.to_csv(csv_path, index=False)
                         print(f"📅 Đã sắp xếp {file_name} theo Date")
-                except Exception as e:
-                    print(f"⚠️ Không thể sắp xếp {file_name}. Lỗi: {e}")
 
-        except HttpError as error:
+                except Exception as e:
+                    print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
+
+        except Exception as error:
             print(f"❌ Lỗi khi tải {file_name}: {error}")
 
 print("\n✅ Hoàn thành tải và sắp xếp tất cả các file CSV theo Date!")
