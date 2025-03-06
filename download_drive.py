@@ -33,12 +33,10 @@ else:
         file_id = file['id']
         file_name = file['name']
         file_path = os.path.join(SAVE_PATH, file_name)
-
         request = service.files().get_media(fileId=file_id)
         with open(file_path, "wb") as f:
             downloader = MediaIoBaseDownload(f, request)
             done = False
             while not done:
-               status, done = downloader.next_chunk()
-
+                status, done = downloader.next_chunk()
         print(f"Đã tải: {file_name}")
