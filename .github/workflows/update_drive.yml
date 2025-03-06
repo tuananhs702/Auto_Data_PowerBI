@@ -1,11 +1,11 @@
-name: Download Files from Google Drive
+name: Download and Commit Files
 on:
   schedule:
     - cron: "0 8 * * *"
   workflow_dispatch:
 
 jobs:
-  download:
+  download-and-commit:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -24,8 +24,13 @@ jobs:
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: python download_drive.py
         
-      - name: Create artifact
-        uses: actions/upload-artifact@v3
-        with:
-          name: downloaded-files
-          path: downloads/
+      - name: Set up Git user
+        run: |
+          git config --global user.name "Your Name"
+          git config --global user.email "your.email@example.com"
+          
+      - name: Commit and push changes
+        run: |
+          git add downloads/
+          git diff --quiet && git diff --staged --quiet || git commit -m "Auto-update all files from Google Drive"
+          git push "https://${{ secrets.PERSONAL_ACCESS_TOKEN }}@github.com/${{ github.repository }}.git" HEAD:main
