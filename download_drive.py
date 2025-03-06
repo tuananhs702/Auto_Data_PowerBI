@@ -59,27 +59,20 @@ predictions_file = os.path.join(SAVE_PATH, "predictions_table_BR_daily.csv")
 if os.path.exists(summary_file) and os.path.exists(predictions_file):
     # 📌 Đọc dữ liệu
     df_summary = pd.read_csv(summary_file)
-    df_predictions = pd.read_csv(predictions_file, header=None)
+    df_predictions = pd.read_csv(predictions_file, header=None, names=["Date", "Predicted", "Upper_Bound", "Lower_Bound"])
 
     # 📅 Lấy danh sách ngày mới từ file dự đoán
-    new_dates = df_predictions.iloc[:, 0].dropna().astype(str).tolist()
-
-    # 🌟 Thêm ngày mới vào summary nếu chưa có
+    new_dates = df_predictions["Date"].astype(str).tolist()
     existing_dates = df_summary.iloc[:, 0].astype(str).tolist()  # Lấy cột ngày từ summary
+
     missing_dates = [date for date in new_dates if date not in existing_dates]
 
     if missing_dates:
-        new_rows = pd.DataFrame({df_summary.columns[0]: missing_dates})  # Chỉ thêm cột ngày
-        df_summary = pd.concat([df_summary, new_rows], ignore_index=True)
+        # 🆕 Lấy dữ liệu từ predictions_table_BR_daily.csv cho các ngày mới
+        new_data = df_predictions[df_predictions["Date"].isin(missing_dates)]
 
-    # 📍 Đảm bảo 3 cột trống tồn tại và điền giá trị 0
-    for col in ["Predicted", "Upper_Bound", "Lower_Bound"]:
-        if col not in df_summary.columns:
-            df_summary[col] = 0  # Tạo cột nếu chưa có
-
-    # 🛠️ Gán giá trị 0 cho tất cả các cột (trừ cột ngày)
-    for col in df_summary.columns[1:]:  # Bỏ qua cột đầu tiên (ngày)
-        df_summary[col].fillna(0, inplace=True)
+        # ✅ Thêm vào summary_Br_daily.csv
+        df_summary = pd.concat([df_summary, new_data], ignore_index=True)
 
     # 💾 Lưu lại file summary
     df_summary.to_csv(summary_file, index=False)
