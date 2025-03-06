@@ -39,6 +39,6 @@ else:
             downloader = MediaIoBaseDownload(f, request)
             done = False
             while not done:
-                _, done = downloader.next_chunk()
+                status, done = downloader.next_chunk()
 
         print(f"Đã tải: {file_name}")
