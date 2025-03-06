@@ -1,31 +1,31 @@
-name: Download All Files from Google Drive
+name: Download Files from Google Drive
 on:
   schedule:
-    - cron: "0 8 * * *"  # Chạy lúc 8h sáng mỗi ngày (UTC)
-  workflow_dispatch:  # Cho phép chạy thủ công
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+
 jobs:
-  update-drive:
+  download:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
         uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.PAT }}
+        
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.x"
+          
       - name: Install dependencies
         run: pip install --upgrade google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client
+        
       - name: Download all files from Google Drive
         env:
           GDRIVE_CREDENTIALS: ${{ secrets.GDRIVE_CREDENTIALS }}
         run: python download_drive.py
-      - name: Commit and push if changed
-        run: |
-          git config --global user.name "GitHub Actions"
-          git config --global user.email "actions@github.com"
-          git add downloads/*
-          git diff --quiet && git diff --staged --quiet || (git commit -m "Auto-update all files from Google Drive")
-          git remote set-url origin https://x-access-token:${{ secrets.PAT }}@github.com/${{ github.repository }}
-          git push
+        
+      - name: Create artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: downloaded-files
+          path: downloads/
