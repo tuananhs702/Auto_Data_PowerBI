@@ -52,77 +52,34 @@ else:
 
             print(f"✅ Đã tải: {file_name}")
 
-            # 🔹 Kiểm tra nếu file có dung lượng bất thường
-            if os.path.getsize(file_path) < 100:  # File quá nhỏ có thể bị lỗi
-                print(f"⚠️ File {file_name} có thể bị lỗi, dung lượng quá nhỏ!")
-                continue
-
-            # 🔹 Nếu file là Excel, chuyển sang CSV và sắp xếp theo Date
+            # 🔹 Nếu file là Excel, chuyển sang CSV
             if file_name.endswith(('.xls', '.xlsx')):
                 csv_path = file_path.rsplit('.', 1)[0] + ".csv"
                 try:
                     df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
-
-                    # Sắp xếp theo Date nếu cột Date tồn tại
-                    if "Date" in df.columns:
-                        df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-                        df = df.sort_values(by="Date")
-
                     df.to_csv(csv_path, index=False)
                     os.remove(file_path)  # Xóa file gốc Excel
-                    print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)} và sắp xếp theo Date")
+                    print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
+                    file_path = csv_path  # Cập nhật đường dẫn mới để xử lý tiếp
                 except Exception as e:
                     print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
+                    continue  # Bỏ qua file này nếu lỗi
 
-            # 🔹 Nếu file đã là CSV, sắp xếp theo Date
-            elif file_name.endswith('.csv'):
+            # 🔹 Sắp xếp tất cả các file CSV theo Date
+            if file_path.endswith('.csv'):
                 try:
                     df = pd.read_csv(file_path)
 
-                    # Sắp xếp theo Date nếu cột Date tồn tại
+                    # Kiểm tra và sắp xếp theo Date nếu có cột Date
                     if "Date" in df.columns:
                         df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
                         df = df.sort_values(by="Date")
-
-                    df.to_csv(file_path, index=False)
-                    print(f"📅 Đã sắp xếp {file_name} theo Date")
+                        df.to_csv(file_path, index=False)
+                        print(f"📅 Đã sắp xếp {file_name} theo Date")
                 except Exception as e:
                     print(f"⚠️ Không thể sắp xếp {file_name}. Lỗi: {e}")
 
         except HttpError as error:
             print(f"❌ Lỗi khi tải {file_name}: {error}")
 
-# 🔹 Cập nhật summary_Br_daily.csv từ predictions_table_BR_daily.csv
-summary_file = os.path.join(SAVE_PATH, "summary_Br_daily.csv")
-predictions_file = os.path.join(SAVE_PATH, "predictions_table_BR_daily.csv")
-
-# Đọc file summary (nếu có)
-try:
-    summary_df = pd.read_csv(summary_file)
-except FileNotFoundError:
-    summary_df = pd.DataFrame(columns=["Date", "Fitting", "True_value"])  # Tạo dataframe trống nếu file không tồn tại
-
-# Đọc file predictions
-try:
-    predictions_df = pd.read_csv(predictions_file)
-
-    # Đảm bảo cột Date có tiêu đề đúng
-    summary_df.rename(columns={summary_df.columns[0]: "Date"}, inplace=True)
-    predictions_df.rename(columns={predictions_df.columns[0]: "Date"}, inplace=True)
-
-    # Chỉ lấy các cột cần thiết từ predictions
-    predictions_df = predictions_df[["Date", "Predicted", "Upper_Bound", "Lower_Bound"]]
-
-    # Merge dữ liệu: Giữ nguyên dữ liệu cũ, thêm ngày mới và cập nhật giá trị dự đoán
-    merged_df = pd.merge(summary_df, predictions_df, on="Date", how="outer")
-
-    # Sắp xếp theo Date trước khi lưu
-    merged_df["Date"] = pd.to_datetime(merged_df["Date"], errors='coerce')
-    merged_df = merged_df.sort_values(by="Date")
-
-    # Ghi đè file cũ
-    merged_df.to_csv(summary_file, index=False)
-    print("✅ File summary_Br_daily.csv đã được cập nhật và sắp xếp theo Date!")
-
-except FileNotFoundError:
-    print("⚠️ Không tìm thấy file predictions_table_BR_daily.csv, không thể cập nhật summary_Br_daily.csv.")
+print("\n✅ Hoàn thành tải và sắp xếp tất cả các file CSV theo Date!")
