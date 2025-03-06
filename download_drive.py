@@ -72,10 +72,10 @@ if os.path.exists(summary_file) and os.path.exists(predictions_file):
         new_rows = pd.DataFrame({df_summary.columns[0]: missing_dates})  # Chỉ thêm cột ngày
         df_summary = pd.concat([df_summary, new_rows], ignore_index=True)
 
-    # 📍 Thêm 3 cột trống nếu chưa có
+    # 📍 Đảm bảo 3 cột trống tồn tại và điền giá trị 0
     for col in ["Predicted", "Upper_Bound", "Lower_Bound"]:
         if col not in df_summary.columns:
-            df_summary[col] = ""
+            df_summary[col] = 0  # Tạo cột nếu chưa có
 
     # 🛠️ Gán giá trị 0 cho tất cả các cột (trừ cột ngày)
     for col in df_summary.columns[1:]:  # Bỏ qua cột đầu tiên (ngày)
