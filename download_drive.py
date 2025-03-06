@@ -17,15 +17,16 @@ service = build('drive', 'v3', credentials=creds)
 FOLDER_ID = "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"
 SAVE_PATH = "downloads"
 
-# ✅ Kiểm tra và tạo thư mục downloads nếu chưa tồn tại
-if not os.path.exists(SAVE_PATH):
-    os.makedirs(SAVE_PATH)
-    print(f"📂 Đã tạo thư mục: {SAVE_PATH}")
+# ✅ Đảm bảo thư mục downloads tồn tại
+os.makedirs(SAVE_PATH, exist_ok=True)
 
 # Lấy danh sách file trong thư mục Google Drive
 query = f"'{FOLDER_ID}' in parents and trashed=false"
 results = service.files().list(q=query, fields="files(id, name)").execute()
 files = results.get('files', [])
+
+# ✅ In danh sách file để debug
+print(f"📂 Danh sách file trong Google Drive: {files}")
 
 if not files:
     print("⚠️ Không có file nào trong thư mục!")
@@ -35,11 +36,6 @@ else:
         file_name = file['name']
         file_path = os.path.join(SAVE_PATH, file_name)
 
-        # Kiểm tra thư mục trước khi tải
-        if not os.path.exists(SAVE_PATH):
-            os.makedirs(SAVE_PATH)
-            print(f"📂 Thư mục {SAVE_PATH} đã bị xóa, tạo lại...")
-
         # Tải file từ Google Drive
         request = service.files().get_media(fileId=file_id)
         with open(file_path, "wb") as f:
@@ -48,4 +44,8 @@ else:
             while not done:
                 status, done = downloader.next_chunk()
 
-        print(f"✅ Đã tải: {file_name}")
+        # ✅ Kiểm tra file đã tải xong chưa
+        if os.path.exists(file_path):
+            print(f"✅ Đã tải: {file_name} -> {file_path}")
+        else:
+            print(f"❌ Lỗi khi tải: {file_name}")
