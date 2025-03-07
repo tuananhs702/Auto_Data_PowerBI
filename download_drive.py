@@ -15,8 +15,10 @@ service = build('drive', 'v3', credentials=creds)
 
 # 🔹 Danh sách file cần tải (tên file và thư mục chứa file)
 FILES_TO_DOWNLOAD = [
-    {"name": "Data_BR_Test.xlsx", "folder_id": "1IC9bv_TQ5ThnVN4DlQc6-LealJel15uK"},
-    {"name": "Price_cotton_26_02_USA_X.xlsx", "folder_id": "1TqeQ97icQLRhLaHoBYCY5QGPl1Inryt2"}
+    {"name": "predictions_table_Br_daily.csv", "folder_id": "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"},
+    {"name": "predictions_table_US_daily.csv", "folder_id": "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"},
+    {"name": "summary_Br_daily.csv", "folder_id": "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"},
+    {"name": "summary_US_daily.csv", "folder_id": "1LyQOw0sTGUTGUxxmGZivAzB_aTBdlH6d"},
 ]
 
 SAVE_PATH = "downloads"
