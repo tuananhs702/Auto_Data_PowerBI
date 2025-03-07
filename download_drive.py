@@ -87,4 +87,24 @@ for file_info in FILES_TO_DOWNLOAD:
     except Exception as error:
         print(f"❌ Lỗi khi tải {file_name}: {error}")
 
-print("\n✅ Hoàn thành tải và xử lý tất cả các file được chỉ định!")
+# 🔹 Hợp nhất dữ liệu từ predictions vào summary
+for country in ["Br", "US"]:
+    pred_file = f"downloads/predictions_table_{country}_daily.csv"
+    summary_file = f"downloads/summary_{country}_daily.csv"
+    
+    if os.path.exists(pred_file) and os.path.exists(summary_file):
+        pred_df = pd.read_csv(pred_file)
+        summary_df = pd.read_csv(summary_file)
+        
+        # Đảm bảo cột đầu tiên là 'Date'
+        pred_df.columns.values[0] = "Date"
+        summary_df.columns.values[0] = "Date"
+        
+        # Gộp dữ liệu
+        merged_df = summary_df.merge(pred_df[["Date", "Predicted", "Upper_Bound", "Lower_Bound"]], on="Date", how="left")
+        
+        # Lưu lại file
+        merged_df.to_csv(summary_file, index=False)
+        print(f"🔄 Đã cập nhật {summary_file} với dữ liệu dự đoán từ {pred_file}")
+
+print("\n✅ Hoàn thành tải, xử lý và hợp nhất dữ liệu!")
