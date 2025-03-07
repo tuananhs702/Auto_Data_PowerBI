@@ -65,18 +65,24 @@ for file_info in FILES_TO_DOWNLOAD:
                 df = pd.read_excel(file_path, engine="openpyxl" if file_name.endswith(".xlsx") else "xlrd")
                 df.to_csv(csv_path, index=False)
                 os.remove(file_path)  # Xóa file gốc Excel
+                file_path = csv_path
                 print(f"🔄 Đã chuyển {file_name} thành {os.path.basename(csv_path)}")
-
-                # Sắp xếp nếu có cột Date
-                df = pd.read_csv(csv_path)
-                if "Date" in df.columns:
-                    df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
-                    df = df.sort_values(by="Date")
-                    df.to_csv(csv_path, index=False)
-                    print(f"📅 Đã sắp xếp {file_name} theo Date")
-
             except Exception as e:
                 print(f"❌ Không thể đọc file {file_name}. Lỗi: {e}")
+                continue
+
+        # 🔹 Đọc file CSV và đặt tên cột đầu tiên là 'Date'
+        df = pd.read_csv(file_path)
+        if not df.empty:
+            df.columns.values[0] = "Date"  # Đặt lại tên cột đầu tiên thành 'Date'
+            df.to_csv(file_path, index=False)
+            print(f"📝 Đã cập nhật tên cột đầu tiên thành 'Date' cho {file_name}")
+
+            # Sắp xếp nếu có cột Date hợp lệ
+            df["Date"] = pd.to_datetime(df["Date"], errors='coerce')
+            df = df.sort_values(by="Date")
+            df.to_csv(file_path, index=False)
+            print(f"📅 Đã sắp xếp {file_name} theo Date")
 
     except Exception as error:
         print(f"❌ Lỗi khi tải {file_name}: {error}")
